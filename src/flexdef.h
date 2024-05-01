@@ -455,7 +455,7 @@ extern struct env_bundle_t env;
  * reject_really_used - same for REJECT
   */
 
-extern int syntaxerror, eofseen;
+extern bool syntaxerror, eofseen;
 extern int yymore_used, reject, real_reject, continued_action, in_rule;
 
 /* Variables used in the flex input routines:
@@ -479,6 +479,7 @@ extern int yymore_used, reject, real_reject, continued_action, in_rule;
  * action_offset - index where the non-prolog starts in action_array
  * action_index - index where the next action should go, with respect
  * 	to "action_array"
+ * always_interactive - if true, generate an interactive scanner
  */
 
 extern int datapos, dataline, linenum;
@@ -544,8 +545,10 @@ extern int maximum_mns, current_mns, current_max_rules;
 extern int num_rules, num_eof_rules, default_rule, lastnfa;
 extern int *firstst, *lastst, *finalst, *transchar, *trans1, *trans2;
 extern int *accptnum, *assoc_rule, *state_type;
-extern int *rule_type, *rule_linenum, *rule_useful;
-extern bool *rule_has_nl, *ccl_has_nl;
+extern int *rule_type, *rule_linenum;
+/* rule_useful[], rule_has_nl[] and ccl_has_nl[] are boolean arrays,
+ * but allocated as char arrays for size. */
+extern char *rule_useful, *rule_has_nl, *ccl_has_nl;
 extern int nlch;
 extern size_t footprint;
 
@@ -567,7 +570,7 @@ extern int current_state_type;
 /* True if the input rules include a rule with both variable-length head
  * and trailing context, false otherwise.
  */
-extern int variable_trailing_context_rules;
+extern bool variable_trailing_context_rules;
 
 
 /* Variables for protos:
@@ -621,9 +624,12 @@ extern int tecfwd[CSIZE + 1], tecbck[CSIZE + 1];
  * scname - start condition name
  */
 
-extern int lastsc, *scset, *scbol, *scxclu, *sceof;
+extern int lastsc, *scset, *scbol;
+/* scxclu[] and sceof[] are boolean arrays, but allocated as char
+ * arrays for size. */
+extern char *scxclu, *sceof;
 extern int current_max_scs;
-extern char **scname;
+extern const char **scname;
 
 
 /* Variables for dfa machine data:
@@ -721,29 +727,17 @@ void   *reallocate_array(void *, int, size_t);
 #define reallocate_integer_array(array,size) \
 	reallocate_array((void *) array, size, sizeof(int))
 
-#define allocate_bool_array(size) \
-	allocate_array(size, sizeof(bool))
-
-#define reallocate_bool_array(array,size) \
-	reallocate_array((void *) array, size, sizeof(bool))
-
 #define allocate_int_ptr_array(size) \
 	allocate_array(size, sizeof(int *))
 
 #define allocate_char_ptr_array(size) \
 	allocate_array(size, sizeof(char *))
 
-#define allocate_dfaacc_union(size) \
-	allocate_array(size, sizeof(union dfaacc_union))
-
 #define reallocate_int_ptr_array(array,size) \
 	reallocate_array((void *) array, size, sizeof(int *))
 
 #define reallocate_char_ptr_array(array,size) \
 	reallocate_array((void *) array, size, sizeof(char *))
-
-#define reallocate_dfaacc_union(array, size) \
-	reallocate_array((void *) array, size, sizeof(union dfaacc_union))
 
 #define allocate_character_array(size) \
 	allocate_array( size, sizeof(char))
@@ -775,22 +769,10 @@ extern void list_character_set(FILE *, int[]);
 
 /* from file dfa.c */
 
-/* Check a DFA state for backing up. */
-extern void check_for_backing_up(int, int[]);
-
-/* Check to see if NFA state set constitutes "dangerous" trailing context. */
-extern void check_trailing_context(int *, int, int *, int);
-
-/* Construct the epsilon closure of a set of ndfa states. */
-extern int *epsclosure(int *, int *, int[], int *, int *);
-
 /* Increase the maximum number of dfas. */
 extern void increase_max_dfas(void);
 
 extern size_t ntod(void);	/* convert a ndfa to a dfa */
-
-/* Converts a set of ndfa states into a dfa state. */
-extern int snstods(int[], int, int[], int, int, int *);
 
 
 /* from file ecs.c */
@@ -810,8 +792,6 @@ extern void mkechar(int, int[], int[]);
 
 /* from file gen.c */
 
-extern void do_indent(void);	/* indent to the current level */
-
 /* Set a conditional amd make it visible in generated code */
 extern void visible_define (const char *);
 
@@ -820,21 +800,6 @@ extern void visible_define_str (const char *, const char *);
 
 /* This time the value part is an int */
 extern void visible_define_int (const char *, const int);
-
-/* Generate full speed compressed transition table. */
-extern void genctbl(void);
-
-/* generate full transition table */
-extern void genftbl(void);
-
-/* Generate data statements for the transition tables. */
-extern void gentabs(void);
-
-/* Write out a formatted string at the current indentation level. */
-extern void indent_put2s(const char *, const char *);
-
-/* Write out a string + newline at the current indentation level. */
-extern void indent_puts(const char *);
 
 /* generate transition tables */
 extern void make_tables(void);
@@ -888,7 +853,7 @@ extern void flexerror(const char *);
 extern void flexfatal(const char *);
 
 /* Report a fatal error with a pinpoint, and terminate */
-#if HAVE_DECL___FUNC__
+#ifdef HAVE_DECL___FUNC__
 #define flex_die(msg) \
     do{ \
         fprintf (stderr,\
@@ -979,7 +944,7 @@ extern int copysingl(int, int);
 extern void dumpnfa(int);
 
 /* Finish up the processing for a rule. */
-extern void finish_rule(int, int, int, int, int);
+extern void finish_rule(int, bool, int, int, int);
 
 /* Connect two machines together. */
 extern int link_machines(int, int);
@@ -1075,7 +1040,7 @@ extern char *ndlookup(const char *);	/* lookup a name definition */
 
 /* Increase maximum number of SC's. */
 extern void scextend(void);
-extern void scinstal(const char *, int);	/* make a start condition */
+extern void scinstal(const char *, bool);	/* make a start condition */
 
 /* Lookup the number associated with a start condition. */
 extern int sclookup(const char *);

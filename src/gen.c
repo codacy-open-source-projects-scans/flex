@@ -43,7 +43,7 @@ struct yy_trans_info {int32_t yy_verify; int32_t yy_nxt;};
 
 /* declare functions that have forward references */
 
-void	genecs(void);
+static void genecs(void);
 
 struct packtype_t *optimize_pack(size_t sz)
 {
@@ -58,6 +58,12 @@ struct packtype_t *optimize_pack(size_t sz)
 	}
 	return &out;
 }
+
+/* Almost everything is done in terms of arrays starting at 1, so provide
+ * a null entry for the zero element of all C arrays.  (The exception
+ * to this is that the fast table representation generally uses the
+ * 0 elements of its arrays, too.)
+ */
 
 /** Make the table for possible eol matches.
  *  @return the newly allocated rule_can_match_eol table
@@ -237,7 +243,7 @@ static struct yytbl_data *mkssltbl (void)
 
 /* genctbl - generates full speed compressed transition table */
 
-void genctbl (void)
+static void genctbl(void)
 {
 	int i;
 	int     end_of_buffer_action = num_rules + 1;
@@ -315,7 +321,6 @@ void genctbl (void)
 	footprint += sizeof(struct yy_trans_info) * (tblend + 2 + 1);
 
 	out_dec ("m4_define([[M4_HOOK_STARTTABLE_SIZE]], [[%d]])", lastsc * 2 + 1);
-
 	if (gentables) {
 		outn ("m4_define([[M4_HOOK_STARTTABLE_BODY]], [[m4_dnl");
 		for (i = 0; i <= lastsc * 2; ++i)
@@ -358,7 +363,7 @@ static struct yytbl_data *mkecstbl (void)
 
 /* Generate equivalence-class tables. */
 
-void genecs (void)
+static void genecs(void)
 {
 	int ch, row;
 	int     numrows;
@@ -398,7 +403,7 @@ void genecs (void)
  * you should call mkecstbl() after this.
  */
 
-struct yytbl_data *mkftbl (void)
+static struct yytbl_data *mkftbl(void)
 {
 	int i;
 	int     end_of_buffer_action = num_rules + 1;
@@ -432,7 +437,7 @@ struct yytbl_data *mkftbl (void)
 
 /* genftbl - generate full transition table */
 
-void genftbl (void)
+static void genftbl(void)
 {
 	int i;
 	int     end_of_buffer_action = num_rules + 1;
@@ -469,7 +474,7 @@ void genftbl (void)
 
 /* gentabs - generate data statements for the transition tables */
 
-void gentabs (void)
+static void gentabs(void)
 {
 	int     sz, i, j, k, *accset, nacc, *acc_array, total_states;
 	int     end_of_buffer_action = num_rules + 1;
@@ -977,8 +982,9 @@ void make_tables (void)
 			}
 		}
 	}
-	else
+	else {
 		gentabs ();
+	}
 
 	snprintf(buf, sizeof(buf), "footprint: %ld bytes\n", footprint);
 	comment(buf);
